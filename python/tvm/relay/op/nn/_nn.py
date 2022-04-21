@@ -39,31 +39,31 @@ reg.register_strategy("nn.mcuconv2d", strategy.conv2d_strategy)
 reg.register_pattern("nn.mcuconv2d", OpPattern.OUT_ELEMWISE_FUSABLE)
 
 
-@reg.register_alter_op_layout("nn.mcuconv2d")
-def alter_op_layout_conv2d(attrs, inputs, tinfos, out_type):
-    """Alternate the layout of conv2d"""
-    return topi.nn.conv2d_alter_layout(attrs, inputs, tinfos, out_type)
+# @reg.register_alter_op_layout("nn.mcuconv2d")
+# def alter_op_layout_conv2d(attrs, inputs, tinfos, out_type):
+#     """Alternate the layout of conv2d"""
+#     return topi.nn.conv2d_alter_layout(attrs, inputs, tinfos, out_type)
 
 
-@reg.register_legalize("nn.mcuconv2d")
-def legalize_conv2d(attrs, inputs, types):
-    """Legalize conv2d op.
+# @reg.register_legalize("nn.mcuconv2d")
+# def legalize_conv2d(attrs, inputs, types):
+#     """Legalize conv2d op.
 
-    Parameters
-    ----------
-    attrs : tvm.ir.Attrs
-        Attributes of current convolution
-    inputs : list of tvm.relay.Expr
-        The args of the Relay expr to be legalized
-    types : list of types
-        List of input and output types
+#     Parameters
+#     ----------
+#     attrs : tvm.ir.Attrs
+#         Attributes of current convolution
+#     inputs : list of tvm.relay.Expr
+#         The args of the Relay expr to be legalized
+#     types : list of types
+#         List of input and output types
 
-    Returns
-    -------
-    result : tvm.relay.Expr
-        The legalized expr
-    """
-    return topi.nn.conv2d_legalize(attrs, inputs, types)
+#     Returns
+#     -------
+#     result : tvm.relay.Expr
+#         The legalized expr
+#     """
+#     return topi.nn.conv2d_legalize(attrs, inputs, types)
 
 
 # relu

@@ -26,6 +26,7 @@ from .utils import get_pad_tuple1d, get_pad_tuple2d, get_pad_tuple3d
 def mcuconv2d(
     data,
     weight,
+    zero_x, zero_y, effective_scale, 
     strides=(1, 1),
     padding=(0, 0),
     dilation=(1, 1),
@@ -49,6 +50,7 @@ def mcuconv2d(
     return _make.mcuconv2d(
         data,
         weight,
+        zero_x, zero_y, effective_scale, 
         strides,
         padding,
         dilation,

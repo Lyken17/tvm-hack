@@ -1837,15 +1837,15 @@ bool Conv2DBackwardWeightRel(const Array<Type>& types, int num_inputs, const Att
 RELAY_REGISTER_OP("nn.conv2d_backward_weight")
     .describe(R"code(The gradient of the 2D convolution layer with respect to the weight.
 
-This layer computes the gradient of the conv2d op with respect to weight,
-given the original input data and the output gradient.
+    This layer computes the gradient of the conv2d op with respect to weight,
+    given the original input data and the output gradient.
 
-- **grad**: (batch, channels, out_height, out_width) if `layout` is `NCHW`.
-- **data**: This depends on the `layout` parameter. Input is 4D array of shape
-            (batch_size, in_channels, height, width) if `layout` is `NCHW`.
-- **out**:  This depends on the `layout` parameter. Output is 4D array of shape
-            (channels, in_channels, kernel_size[0], kernel_size[1]) if `layout` is `NCHW`.
-)code" TVM_ADD_FILELINE)
+    - **grad**: (batch, channels, out_height, out_width) if `layout` is `NCHW`.
+    - **data**: This depends on the `layout` parameter. Input is 4D array of shape
+                (batch_size, in_channels, height, width) if `layout` is `NCHW`.
+    - **out**:  This depends on the `layout` parameter. Output is 4D array of shape
+                (channels, in_channels, kernel_size[0], kernel_size[1]) if `layout` is `NCHW`.
+    )code" TVM_ADD_FILELINE)
     .set_attrs_type<Conv2DAttrs>()
     .set_num_inputs(2)
     .add_argument("grad", "Tensor", "The gradient tensor.")
@@ -1854,12 +1854,16 @@ given the original input data and the output gradient.
     .add_type_rel("Conv2DBackwardWeight", Conv2DBackwardWeightRel)
     .set_attr<FInferCorrectLayout>("FInferCorrectLayout", ConvInferCorrectLayout<Conv2DAttrs>);
 
+
 // Newly added MCUConv2dOPs
-inline Expr MakeMCUConv2D(Expr data, Expr weight, Array<IndexExpr> strides,
-                                     Array<IndexExpr> padding, Array<IndexExpr> dilation,
-                                     int groups, IndexExpr channels, Array<IndexExpr> kernel_size,
-                                     std::string grad_layout, std::string data_layout,
-                                     std::string kernel_layout, DataType out_dtype) {
+inline Expr MakeMCUConv2D(Expr data, Expr weight, 
+                Expr zero_x, Expr zero_y, Expr effective_scale, 
+                Array<IndexExpr> strides,
+                Array<IndexExpr> padding, Array<IndexExpr> dilation,
+                int groups, IndexExpr channels, Array<IndexExpr> kernel_size,
+                std::string grad_layout, std::string data_layout,
+                std::string kernel_layout, DataType out_dtype) 
+{
   auto attrs = make_object<Conv2DAttrs>();
   attrs->strides = std::move(strides);
   attrs->padding = std::move(padding);
@@ -1872,12 +1876,24 @@ inline Expr MakeMCUConv2D(Expr data, Expr weight, Array<IndexExpr> strides,
   attrs->kernel_layout = std::move(data_layout);
   attrs->out_layout = std::move(kernel_layout);
   const Op& op = Op::Get("nn.mcuconv2d");
-  return Call(op, {data, weight}, Attrs(attrs), {});
+  return Call(op, {data, weight, zero_x, zero_y, effective_scale}, Attrs(attrs), {});
 }
+
+TVM_REGISTER_GLOBAL("relay.op.nn._make.mcuconv2d")
+    .set_body_typed([](Expr data, Expr weight, Expr zero_x, Expr zero_y, Expr effective_scale, 
+                       Array<IndexExpr> strides, Array<IndexExpr> padding,
+                       Array<IndexExpr> dilation, int groups, IndexExpr channels,
+                       Array<IndexExpr> kernel_size, String data_layout, String kernel_layout,
+                       String out_layout, DataType out_dtype) {
+      return MakeMCUConv2D(data, weight, 
+                    zero_x, zero_y, effective_scale, 
+                    strides, padding, dilation, groups, channels,
+                    kernel_size, data_layout, kernel_layout, out_layout, out_dtype);
+    });
 
 bool MCUConv2DRel(const Array<Type>& types, int num_inputs, const Attrs& attrs,
                const TypeReporter& reporter) {
-  ICHECK_EQ(types.size(), 3);
+  ICHECK_EQ(types.size(), 6) << "find num_inputs " << num_inputs << " expect types to be lenght {num_inputs + 1}";
   const auto* data = types[0].as<TensorTypeNode>();
   const auto* weight = types[1].as<TensorTypeNode>();
   if (data == nullptr) return false;
@@ -2060,28 +2076,24 @@ bool MCUConv2DRel(const Array<Type>& types, int num_inputs, const Attrs& attrs,
   }
   oshape = trans_out_layout.BackwardShape(oshape);
   // assign output type
-  reporter->Assign(types[2], TensorType(oshape, out_dtype));
+  // std::cout << types << std::endl;
+  reporter->Assign(types[num_inputs], TensorType(oshape, out_dtype));
   return true;
 }
 
-TVM_REGISTER_GLOBAL("relay.op.nn._make.mcuconv2d")
-    .set_body_typed([](Expr data, Expr weight, Array<IndexExpr> strides, Array<IndexExpr> padding,
-                       Array<IndexExpr> dilation, int groups, IndexExpr channels,
-                       Array<IndexExpr> kernel_size, String data_layout, String kernel_layout,
-                       String out_layout, DataType out_dtype) {
-      return MakeConv<Conv2DAttrs>(data, weight, strides, padding, dilation, groups, channels,
-                                   kernel_size, data_layout, kernel_layout, out_layout, out_dtype,
-                                   "nn.mcuconv2d");
-    });
+
 
 RELAY_REGISTER_OP("nn.mcuconv2d")
     .describe(R"code(test)code" TVM_ADD_FILELINE)
     .set_attrs_type<Conv2DAttrs>()
-    .set_num_inputs(2)
+    .set_num_inputs(5)
     .add_argument("data", "Tensor", "The input tensor.")
     .add_argument("weight", "Tensor", "The weight tensor.")
+    .add_argument("zero_x", "Tensor", "The weight tensor.")
+    .add_argument("zero_y", "Tensor", "The weight tensor.")
+    .add_argument("effective_scale", "Tensor", "The weight tensor.")
     .set_support_level(2)
-    .add_type_rel("Conv2D", MCUConv2DRel)
+    .add_type_rel("MCUConv2D", MCUConv2DRel)
     .set_attr<FInferCorrectLayout>("FInferCorrectLayout", ConvInferCorrectLayout<Conv2DAttrs>);
 
 }  // namespace relay
