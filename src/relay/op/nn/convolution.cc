@@ -1856,7 +1856,7 @@ RELAY_REGISTER_OP("nn.conv2d_backward_weight")
 
 
 // Newly added MCUConv2dOPs
-inline Expr MakeMCUConv2D(Expr data, Expr weight, 
+inline Expr MakeMCUConv2D(Expr data, Expr weight, Expr bias,
                 Expr zero_x, Expr zero_y, Expr effective_scale, 
                 Array<IndexExpr> strides,
                 Array<IndexExpr> padding, Array<IndexExpr> dilation,
@@ -1876,16 +1876,16 @@ inline Expr MakeMCUConv2D(Expr data, Expr weight,
   attrs->kernel_layout = std::move(data_layout);
   attrs->out_layout = std::move(kernel_layout);
   const Op& op = Op::Get("nn.mcuconv2d");
-  return Call(op, {data, weight, zero_x, zero_y, effective_scale}, Attrs(attrs), {});
+  return Call(op, {data, weight, bias, zero_x, zero_y, effective_scale}, Attrs(attrs), {});
 }
 
 TVM_REGISTER_GLOBAL("relay.op.nn._make.mcuconv2d")
-    .set_body_typed([](Expr data, Expr weight, Expr zero_x, Expr zero_y, Expr effective_scale, 
+    .set_body_typed([](Expr data, Expr weight, Expr bias, Expr zero_x, Expr zero_y, Expr effective_scale, 
                        Array<IndexExpr> strides, Array<IndexExpr> padding,
                        Array<IndexExpr> dilation, int groups, IndexExpr channels,
                        Array<IndexExpr> kernel_size, String data_layout, String kernel_layout,
                        String out_layout, DataType out_dtype) {
-      return MakeMCUConv2D(data, weight, 
+      return MakeMCUConv2D(data, weight, bias,
                     zero_x, zero_y, effective_scale, 
                     strides, padding, dilation, groups, channels,
                     kernel_size, data_layout, kernel_layout, out_layout, out_dtype);
@@ -1893,7 +1893,7 @@ TVM_REGISTER_GLOBAL("relay.op.nn._make.mcuconv2d")
 
 bool MCUConv2DRel(const Array<Type>& types, int num_inputs, const Attrs& attrs,
                const TypeReporter& reporter) {
-  ICHECK_EQ(types.size(), 6) << "find num_inputs " << num_inputs << " expect types to be lenght {num_inputs + 1}";
+  ICHECK_EQ(types.size(), 7) << "find num_inputs " << num_inputs << " expect types to be lenght {num_inputs + 1}";
   const auto* data = types[0].as<TensorTypeNode>();
   const auto* weight = types[1].as<TensorTypeNode>();
   if (data == nullptr) return false;
@@ -2082,13 +2082,13 @@ bool MCUConv2DRel(const Array<Type>& types, int num_inputs, const Attrs& attrs,
 }
 
 
-
 RELAY_REGISTER_OP("nn.mcuconv2d")
     .describe(R"code(test)code" TVM_ADD_FILELINE)
     .set_attrs_type<Conv2DAttrs>()
-    .set_num_inputs(5)
+    .set_num_inputs(6)
     .add_argument("data", "Tensor", "The input tensor.")
     .add_argument("weight", "Tensor", "The weight tensor.")
+    .add_argument("bias", "Tensor", "The weight tensor.")
     .add_argument("zero_x", "Tensor", "The weight tensor.")
     .add_argument("zero_y", "Tensor", "The weight tensor.")
     .add_argument("effective_scale", "Tensor", "The weight tensor.")

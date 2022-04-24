@@ -184,9 +184,10 @@ class BuildModule(object):
         )
 
         # Setup the params.
+        
         if params:
             self._set_params(params)
-
+        
         # Build the IR module. If auto_scheduler is not enabled,
         # then use the TOPI-defined schedule.
         use_auto_scheduler = PassContext.current().config.get(
@@ -206,7 +207,7 @@ class BuildModule(object):
         mod = self.get_module()
         params = self.get_params()
         executor_config = self.get_graph_json() if str(executor) == "graph" else None
-
+        
         return executor_config, mod, params
 
     def optimize(self, mod, target=None, params=None):
@@ -277,6 +278,7 @@ class BuildModule(object):
         ret = {}
         for key, value in params.items():
             ret[key] = value.data
+       
         return ret
 
     def get_irmodule(self):
@@ -475,6 +477,7 @@ def build(
 
     with tophub_context:
         bld_mod = BuildModule()
+        # print(params.keys())
         graph_json, runtime_mod, params = bld_mod.build(
             mod=ir_mod,
             target=target,
@@ -484,6 +487,7 @@ def build(
             workspace_memory_pools=workspace_memory_pools,
             mod_name=mod_name,
         )
+        # print(params.keys())
         func_metadata = bld_mod.get_function_metadata()
         devices = bld_mod.get_devices()
         lowered_ir_mods = bld_mod.get_irmodule()
