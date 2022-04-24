@@ -38,7 +38,17 @@ from ..strategy.generic import is_depthwise_conv2d
 reg.register_strategy("nn.mcuconv2d", strategy.conv2d_strategy)
 reg.register_pattern("nn.mcuconv2d", OpPattern.OUT_ELEMWISE_FUSABLE)
 
-
+@reg.register_legalize("nn.mcuconv2d", level=10)
+def mcu_nn_conv2d(attrs, inputs, types):
+    new_inputs = [relay.cast(_, "int32") for _ in inputs]
+    x, y, b, zx, zy, scale = new_inputs
+    nx = x - zx 
+    conv_res = relay.nn.conv2d(nx, y, attrs.strides, attrs.padding, attrs.dilation, attrs.groups)
+    conv_res = relay.nn.bias_add(conv_res, b)
+    scale = relay.reshape(scale, newshape=[1, -1, 1, 1])
+    int32_out = conv_res * scale + zy
+    int32_out = truncuate(int32_out)
+    return relay.cast(int32_out, "int8")
 # @reg.register_alter_op_layout("nn.mcuconv2d")
 # def alter_op_layout_conv2d(attrs, inputs, tinfos, out_type):
 #     """Alternate the layout of conv2d"""
