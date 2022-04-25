@@ -34,6 +34,19 @@ from .._tensor import elemwise_shape_func
 from ..op import OpPattern
 from ..strategy.generic import is_depthwise_conv2d
 
+# reg.register_strategy("nn.mcuadd", strategy.reduced)
+@reg.register_legalize("nn.mcuadd", level=10)
+def mcu_nn_add(attrs, inputs, types):
+    new_inputs = [relay.cast(_, "int32") for _ in inputs]
+    x1, x2, zero_x1, zero_x2, scale_x1, scale_x2, zero_y, scale_y = new_inputs
+
+    x1 = (x1 - zero_x1) * scale_x1
+    x2 = (x2 - zero_x2) * scale_x2
+    out = x1 + x2
+    int32_out = out / scale_y + zero_y
+
+    return relay.cast(int32_out, "int8")
+
 # conv2d
 reg.register_strategy("nn.mcuconv2d", strategy.conv2d_strategy)
 reg.register_pattern("nn.mcuconv2d", OpPattern.OUT_ELEMWISE_FUSABLE)

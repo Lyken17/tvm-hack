@@ -23,6 +23,12 @@ from ..dyn.nn import _make as _dyn_make
 from . import _make
 from .utils import get_pad_tuple1d, get_pad_tuple2d, get_pad_tuple3d
 
+
+def mcuadd(x1, x2, zero_x1, zero_x2, scale_x1, scale_x2, zero_y, scale_y, out_dtype=""):
+    return _make.mcuadd(
+        x1, x2, zero_x1, zero_x2, scale_x1, scale_x2, zero_y, scale_y, out_dtype
+    )
+
 def mcuconv2d(
     data,
     weight,

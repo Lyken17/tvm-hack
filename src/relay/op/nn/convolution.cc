@@ -2096,5 +2096,52 @@ RELAY_REGISTER_OP("nn.mcuconv2d")
     .add_type_rel("MCUConv2D", MCUConv2DRel)
     .set_attr<FInferCorrectLayout>("FInferCorrectLayout", ConvInferCorrectLayout<Conv2DAttrs>);
 
+// ================ MCU Elementwise Add
+inline Expr MakeMCUAdd(Expr x1, Expr x2, 
+                Expr zero_x1, Expr zero_x2, 
+                Expr scale_x1, Expr scale_x2, 
+                Expr zero_y, Expr scale_y,
+                DataType out_dtype) 
+{
+  auto attrs = make_object<BiasAddAttrs>();
+  const Op& op = Op::Get("nn.mcuadd");
+  return Call(op, {x1, x2, zero_x1, zero_x2, scale_x1, scale_x2, zero_y, scale_y}, Attrs(attrs), {});
+}
+
+TVM_REGISTER_GLOBAL("relay.op.nn._make.mcuadd")
+    .set_body_typed([](Expr x1, Expr x2, 
+                Expr zero_x1, Expr zero_x2, 
+                Expr scale_x1, Expr scale_x2, 
+                Expr zero_y, Expr scale_y,
+                DataType out_dtype) {
+      return MakeMCUAdd(x1, x2, zero_x1, zero_x2, scale_x1, scale_x2, zero_y, scale_y, out_dtype);
+    });
+
+bool MCUAddRel(const Array<Type>& types, int num_inputs, const Attrs& attrs,
+               const TypeReporter& reporter) {
+  ICHECK_EQ(types.size(), 9) << "find num_inputs " << num_inputs << " expect types to be lenght {num_inputs + 1}";
+  const auto* data = types[0].as<TensorTypeNode>();
+  const auto* weight = types[1].as<TensorTypeNode>();
+  if (data == nullptr) return false;
+  // assign output type
+  reporter->Assign(types[num_inputs], TensorType(weight->shape, weight->dtype));
+  return true;
+}
+
+RELAY_REGISTER_OP("nn.mcuadd")
+    .describe(R"code(test)code" TVM_ADD_FILELINE)
+    .set_attrs_type<BiasAddAttrs>()
+    .set_num_inputs(8)
+    .add_argument("x1", "Tensor", "The input tensor.")
+    .add_argument("x2", "Tensor", "The weight tensor.")
+    .add_argument("zero_x1", "Tensor", "The weight tensor.")
+    .add_argument("zero_x2", "Tensor", "The weight tensor.")
+    .add_argument("scale_x1", "Tensor", "The weight tensor.")
+    .add_argument("scale_x2", "Tensor", "The weight tensor.")
+    .add_argument("zero_y", "Tensor", "The weight tensor.")
+    .add_argument("scale_y", "Tensor", "The weight tensor.")
+    .set_support_level(2)
+    .add_type_rel("MCUAdd", MCUAddRel);
+
 }  // namespace relay
 }  // namespace tvm
