@@ -21,6 +21,8 @@
  * \file reduce.cc
  * \brief Reduction operators.
  */
+#include <typeinfo>
+
 #include <tvm/relay/attrs/reduce.h>
 #include <tvm/relay/expr.h>
 #include <tvm/relay/op.h>
@@ -718,6 +720,82 @@ RELAY_REGISTER_OP("variance")
     .set_attr<FTVMCompute>("FTVMCompute", VarianceCompute)
     .set_attr<FInferCorrectLayout>("FInferCorrectLayout", ReduceInferCorrectLayout<VarianceAttrs>)
     .set_attr<TOpPattern>("TOpPattern", kCommReduce);
+
+
+Array<te::Tensor> MCUMeanCompute(const Attrs& attrs, const Array<te::Tensor>& inputs,
+                              const Type& out_type) {
+  // std::cout << inputs[0]->dtype << std::endl;                      
+
+  auto middle_dtype = DataType::Int(32); 
+  auto final_dtype = inputs[0]->dtype;
+  // DataType::Int(32)
+  IndexExpr count = tir::make_const(middle_dtype, 1);
+  
+  const ReduceAttrs* param = attrs.as<ReduceAttrs>();
+  ICHECK(param != nullptr);
+  auto axes = param->axis;
+  for (int64_t i : GetReduceAxes(inputs[0]->shape.size(), param->axis, param->exclude)) {
+    count *= inputs[0]->shape[i];
+  }
+
+  Type new_out_type = TensorType(out_type.as<TensorTypeNode>()->shape, middle_dtype);
+  // std::cout << out_type << out_type.as<TensorTypeNode>()->shape << std::endl;    
+  // std::cout << new_out_type << new_out_type.as<TensorTypeNode>()->shape << std::endl;    
+
+  // Although count is created as middle_dtype,
+  // its type may be changed (promoted) during multiplication
+
+  Array<te::Tensor> new_inputs = {
+    topi::cast(inputs[0], middle_dtype)
+  };
+  count = cast(middle_dtype, count);
+  auto res = ReduceCompute(attrs, new_inputs, new_out_type, topi::sum);
+  auto out = topi::cast(topi::divide(res[0], count), final_dtype);
+
+  // std::cout << inputs[0]->dtype << std::endl;                      
+  // auto tmp = topi::cast(inputs[0], DataType::Int(32));
+  // std::cout << tmp->dtype << std::endl;                      
+  return {out};
+}
+
+
+// bool MCUConv2DRel(const Array<Type>& types, int num_inputs, const Attrs& attrs,
+              //  const TypeReporter& reporter) {
+bool MCUMeanRel(
+    const Array<Type>& types, int num_inputs, const Attrs& attrs, const TypeReporter& reporter
+) {
+  // ICHECK_EQ(types.size(), 2) << "find num_inputs " << num_inputs << " expect types to be lenght {num_inputs + 1}";
+  // const auto* data = types[0].as<TensorTypeNode>();
+  // if (data == nullptr) return false;
+  // const auto* param = attrs.as<ReduceAttrs>();
+  // Array<te::Tensor> inputs = {data};
+  // auto res = ReduceCompute(attrs, inputs, param->out_dtype, topi::sum);
+  return true;
+}
+
+RELAY_REGISTER_REDUCE_OP("mcumean")
+    .describe(R"code(Computes the mean of array elements over given axes.
+
+Example::
+
+  data = [[[1,2],[2,3],[1,3]],
+          [[1,4],[4,3],[5,2]],
+          [[7,1],[7,2],[7,3]]]
+
+  mean(data)
+  [3.22]
+
+  mean(data, axis=[1,2])
+  [ 2.  3.16666667  4.5]
+
+)code" TVM_ADD_FILELINE)
+    .set_attrs_type<ReduceAttrs>()
+    .set_support_level(4)
+    .add_type_rel("Reduce", ReduceRel)
+    .set_attr<FTVMCompute>("FTVMCompute", MCUMeanCompute)
+    .set_attr<FInferCorrectLayout>("FInferCorrectLayout", ReduceInferCorrectLayout<ReduceAttrs>)
+    .set_attr<TOpPattern>("TOpPattern", kCommReduce);
+
 
 }  // namespace relay
 }  // namespace tvm

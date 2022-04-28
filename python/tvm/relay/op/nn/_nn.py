@@ -40,6 +40,10 @@ def mcu_nn_add(attrs, inputs, types):
     new_inputs = [relay.cast(_, "int32") for _ in inputs]
     x1, x2, zero_x1, zero_x2, scale_x1, scale_x2, zero_y, scale_y = new_inputs
 
+    scale_x1 = relay.reshape(scale_x1, newshape=[1, -1, 1, 1])
+    scale_x2 = relay.reshape(scale_x2, newshape=[1, -1, 1, 1])
+    scale_y = relay.reshape(scale_y, newshape=[1, -1, 1, 1])
+
     x1 = (x1 - zero_x1) * scale_x1
     x2 = (x2 - zero_x2) * scale_x2
     out = x1 + x2

@@ -32,7 +32,7 @@ _reg.register_reduce_schedule("min")
 _reg.register_reduce_schedule("prod")
 _reg.register_reduce_schedule("mean")
 _reg.register_reduce_schedule("variance")
-
+_reg.register_reduce_schedule("mcumean")
 
 def _create_axis_record(attrs, inputs):
     axes = attrs.axis if attrs.axis is None else list(get_const_tuple(attrs.axis))

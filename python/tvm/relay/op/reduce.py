@@ -22,6 +22,9 @@ from . import _make
 from .tensor import exp, log, sqrt
 from .transform import squeeze
 
+def mcumean(data, axis=None, keepdims=False, exclude=False):
+    axis = [axis] if isinstance(axis, int) else axis
+    return _make.mcumean(data, axis, keepdims, exclude)
 
 def argmax(data, axis=None, keepdims=False, exclude=False, select_last_index=False):
     """Returns the indices of the maximum values along an axis.
