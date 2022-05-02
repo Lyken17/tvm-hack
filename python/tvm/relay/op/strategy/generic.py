@@ -149,11 +149,21 @@ def wrap_compute_softmax(topi_compute):
     """Wrap softmax topi compute"""
 
     def _compute_softmax(attrs, inputs, out_type):
-        axis = attrs.get_int("axis")
-        return [topi_compute(inputs[0], axis)]
+        return [topi_compute(inputs[0], out_type)]
 
     return _compute_softmax
 
+# @override_native_generic_func("mcutruncate")
+# def mcutruncate(attrs, inputs, out_type, target):
+#     """softmax generic strategy"""
+#     from tvm import relay
+#     strategy = _op.OpStrategy()
+#     strategy.add_implementation(
+#         wrap_compute_softmax(relay.nn.mcutruncate),
+#         wrap_topi_schedule(topi.generic.schedule_softmax),
+#         name="mcutrucate",
+#     )
+#     return strategy
 
 @override_native_generic_func("softmax_strategy")
 def softmax_strategy(attrs, inputs, out_type, target):

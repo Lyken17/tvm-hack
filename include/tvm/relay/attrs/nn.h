@@ -39,6 +39,16 @@ namespace relay {
  *   and enables automatic derivation of bias's shape.
  *   You can directly use add for more generalized case.
  */
+ struct TruncateAttrs : public tvm::AttrsNode<TruncateAttrs> {
+  int min;
+  int max;
+
+  TVM_DECLARE_ATTRS(TruncateAttrs, "relay.attrs.TruncateAttrs") {
+    TVM_ATTR_FIELD(min).describe("Min value").set_default(-128);
+    TVM_ATTR_FIELD(max).describe("Max value").set_default(127);
+  }
+};
+
 struct BiasAddAttrs : public tvm::AttrsNode<BiasAddAttrs> {
   int axis;
 

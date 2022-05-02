@@ -268,8 +268,8 @@ bool MCUConv2DRel(const Array<Type>& types, int num_inputs, const Attrs& attrs,
   }
   oshape = trans_out_layout.BackwardShape(oshape);
   // assign output type
-  // std::cout << types << std::endl;
-  reporter->Assign(types[num_inputs], TensorType(oshape, out_dtype));
+  // reporter->Assign(types[num_inputs], TensorType(oshape, out_dtype));
+  reporter->Assign(types[num_inputs], TensorType(oshape, DataType::Int(32)));
   return true;
 }
 
@@ -334,6 +334,43 @@ RELAY_REGISTER_OP("nn.mcuadd")
     .add_argument("scale_y", "Tensor", "The weight tensor.")
     .set_support_level(2)
     .add_type_rel("MCUAdd", MCUAddRel);
+
+
+
+// ================ MCU Elementwise Add
+TVM_REGISTER_NODE_TYPE(TruncateAttrs);
+
+inline Expr MakeMCUTruncate(Expr x1, int min, int max, DataType out_dtype) 
+{
+  auto attrs = make_object<TruncateAttrs>();
+  attrs->min = std::move(min);
+  attrs->max = std::move(max);
+  const Op& op = Op::Get("nn.mcutruncate");
+  return Call(op, {x1, }, Attrs(attrs), {});
+}
+
+TVM_REGISTER_GLOBAL("relay.op.nn._make.mcutruncate")
+    .set_body_typed([](Expr x1, int min, int max, DataType out_dtype) {
+      return MakeMCUTruncate(x1, min, max, out_dtype);
+    });
+
+bool MCUTruncateRel(const Array<Type>& types, int num_inputs, const Attrs& attrs,
+               const TypeReporter& reporter) {
+  ICHECK_EQ(types.size(), 2) << "find num_inputs " << num_inputs << " expect types to be lenght {num_inputs + 1}";
+  const auto* data = types[0].as<TensorTypeNode>();
+  if (data == nullptr) return false;
+  // assign output type
+  reporter->Assign(types[num_inputs], TensorType(data->shape, DataType::Int(8)));
+  return true;
+}
+
+RELAY_REGISTER_OP("nn.mcutruncate")
+    .describe(R"code(test)code" TVM_ADD_FILELINE)
+    .set_attrs_type<TruncateAttrs>()
+    .set_num_inputs(1)
+    .add_argument("x", "Tensor", "The input tensor.")
+    .set_support_level(2)
+    .add_type_rel("MCUTruncate", MCUTruncateRel);
 
 
 }
