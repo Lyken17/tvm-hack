@@ -24,6 +24,11 @@ class Conv1DAttrs(Attrs):
     """Attributes for nn.conv1d"""
 
 
+@tvm._ffi.register_object("relay.attrs.TruncateAttrs")
+class TruncateAttrs(Attrs):
+    """Attributes for nn.conv1d"""
+
+
 @tvm._ffi.register_object("relay.attrs.Conv2DAttrs")
 class Conv2DAttrs(Attrs):
     """Attributes for nn.conv2d"""
